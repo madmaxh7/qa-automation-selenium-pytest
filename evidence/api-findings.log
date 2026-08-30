@@ -1,0 +1,25 @@
+catalog: 103 matches total, 72 past, 31 future (as of 2026-08-27)
+oldest kickoff: 2026-02-27   newest: 2026-12-28
+
+--- BUG-06: reset-balance response vs persisted state ---
+  attempt 1: POST /api/reset-balance -> {"message": "Balance reset successfully", "balance": 125.5, "currency": "EUR"}
+              GET  /api/balance       -> {"balance": 120, "currency": "EUR"}
+
+--- BUG-03 at API layer: bet on a past match ---
+  match premier-league-manutd-chelsea kickoff=2026-02-27 (today 2026-08-27)
+  POST /api/place-bet -> 200 {"message": "Bet placed successfully", "matchId": "premier-league-manutd-chelsea", "selection": "HOME", "stake": 5, "odds": 2.45, "payout": 12.25, "balance": 115, "currency": "USD"}
+
+--- BUG-08: currency in place-bet response ---
+  place-bet currency = 'USD'   balance currency = 'EUR'   spec requires 'EUR'
+  payout check: stake 5.0 x odds 2.45 = 12.25   api payout = 12.25   (stake x 2 would be 10.0)
+=== BUG-06 confirmation run, 2026-08-27T09:55:46 ===
+POST /api/reset-balance -> 200 {"message": "Balance reset successfully", "balance": 125.5, "currency": "EUR"}
+GET  /api/balance       -> 200 {"balance": 120, "currency": "EUR"}
+reported=125.5  persisted=120  delta=5.5
+VERDICT: INCONSISTENT
+
+=== BUG-15 confirmation run, 2026-08-29T10:37:11 ===
+GET   /api/place-bet      -> 200 '{}'
+POST  /api/matches        -> 405 '{"error":"method_not_allowed"}'
+GET   /api/reset-balance  -> 405 '{"error":"method_not_allowed"}'
+VERDICT: GET /api/place-bet is the only endpoint answering 200 to an unsupported verb
